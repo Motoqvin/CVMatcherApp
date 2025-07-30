@@ -3,7 +3,7 @@ namespace CVMatcherApp.Api.Models;
 public class CV
 {
     public int Id { get; set; }
-    public required string FileName { get; set; }
+    public string? FileName { get; set; }
     public string? Content { get; set; }
     public string? FullName { get; set; }
     public string? Email { get; set; }

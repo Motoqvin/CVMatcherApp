@@ -10,26 +10,6 @@ using Hangfire;
 using Hangfire.PostgreSql;
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.InitAspnetIdentity(builder.Configuration);
-builder.Services.InitAuth();
-builder.Services.InitSwagger();
-
-builder.Services.AddHangfire(config =>
-{
-    string conStr = builder.Configuration.GetConnectionString("SqlDb")!;
-    config.UsePostgreSqlStorage(conStr);
-});
-builder.Services.AddHangfireServer();
-
-builder.Services.AddScoped<IAuditLogger, AuditLogger>();
-builder.Services.AddScoped<ILogRepository, LogRepository>();
-builder.Services.AddScoped<ICVRepository, CVRepository>();
-builder.Services.AddScoped<ICVService, CVService>();
-builder.Services.AddScoped<CVsCleanupJob>();
-
 builder.Services.AddOptions<JwtOptions>()
     .Configure(options => {
         var jwtOptions = builder.Configuration.GetSection("Jwt").Get<JwtOptions>();
@@ -50,9 +30,50 @@ builder.Services.AddOptions<JwtOptions>()
         options.SignatureKey = jwtOptions.SignatureKey;
     });
 
+builder.Services.AddOptions<OpenAIOptions>()
+    .Configure(options => {
+        var openAIOptions = builder.Configuration.GetSection("OpenAI").Get<OpenAIOptions>();
+
+        if(openAIOptions == null) {
+            throw new ArgumentNullException(nameof(openAIOptions));
+        }
+
+        options.ApiKey = openAIOptions.ApiKey ?? throw new ArgumentNullException(nameof(openAIOptions.ApiKey));
+        options.Model = openAIOptions.Model ?? throw new ArgumentNullException(nameof(openAIOptions.Model));
+    });
+
+builder.Services.AddHttpClient();
+builder.Services.AddOpenApi();
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.InitAspnetIdentity(builder.Configuration);
+builder.Services.InitAuth();
+builder.Services.InitSwagger();
+
+builder.Services.AddHangfire(config =>
+{
+    string conStr = builder.Configuration.GetConnectionString("SqlDb")!;
+    config.UsePostgreSqlStorage(conStr);
+});
+builder.Services.AddHangfireServer();
+
+builder.Services.AddScoped<ILogRepository, LogRepository>();
+builder.Services.AddScoped<ICVRepository, CVRepository>();
+builder.Services.AddScoped<ICVService, CVService>();
+builder.Services.AddScoped<IAuditLogger, AuditLogger>();
+builder.Services.AddScoped<IOpenAIService, OpenAIService>();
+builder.Services.AddScoped<CVsCleanupJob>();
+builder.Services.AddScoped<OpenAIAnalysisJob>();
+
 var app = builder.Build();
 
 await app.SeedRolesAsync();
+
+app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 
 if (app.Environment.IsDevelopment())
 {
@@ -61,12 +82,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseAuthentication();
-app.UseAuthorization();
-
 app.UseMiddleware<LoggingMiddleware>();
 
-app.MapControllers();
+app.MapControllers().AllowAnonymous();
 
 app.UseHangfireDashboard();
 

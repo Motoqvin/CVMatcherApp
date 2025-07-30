@@ -11,6 +11,11 @@ public class LoggingMiddleware
     {
         this.next = next;
     }
+    
+    private string? SanitizeString(string input)
+    {
+        return input?.Replace("\0", string.Empty);
+    }
 
     public async Task InvokeAsync(HttpContext context, IAuditLogger logger)
     {
@@ -19,10 +24,13 @@ public class LoggingMiddleware
 
         context.Request.EnableBuffering();
         var requestBody = await new StreamReader(context.Request.Body).ReadToEndAsync();
+        requestBody = SanitizeString(requestBody);
         context.Request.Body.Position = 0;
 
         var requestHeaders = string.Join(", ", context.Request.Headers.Select(h => $"{h.Key}: {h.Value}"));
+        requestHeaders = SanitizeString(requestHeaders);
         var responseHeaders = string.Join(", ", context.Response.Headers.Select(h => $"{h.Key}: {h.Value}"));
+        responseHeaders = SanitizeString(responseHeaders);
         var methodType = 1;
         methodType = context.Request.Method switch
         {
@@ -35,11 +43,12 @@ public class LoggingMiddleware
         var originalBodyStream = context.Response.Body;
         using var responseBodyStream = new MemoryStream();
         context.Response.Body = responseBodyStream;
-        
+
         await this.next(context);
 
         responseBodyStream.Seek(0, SeekOrigin.Begin);
         var responseBody = await new StreamReader(responseBodyStream).ReadToEndAsync();
+        responseBody = SanitizeString(responseBody);
         responseBodyStream.Seek(0, SeekOrigin.Begin);
 
         await responseBodyStream.CopyToAsync(originalBodyStream);

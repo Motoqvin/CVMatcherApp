@@ -1,10 +1,12 @@
 using CVMatcherApp.Api.Data;
+using CVMatcherApp.Api.Exceptions;
 using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Repositories.Base;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace CVMatcherApp.Api.Repositories;
 
@@ -27,15 +29,16 @@ public class CVRepository : ICVRepository
         return oldCVs.Count;
     }
 
-    public CV ParseCV(string file)
+    public CV Extract(byte[] bytes)
     {
-        var cv = new CV
-        {
-            FileName = file
-        };
-
-        using var reader = new PdfReader(file);
+        if (bytes == null || bytes.Length == 0)
+            throw new ArgumentException("File cannot be null or empty");
+        using var memoryStream = new MemoryStream(bytes);
+        using var reader = new PdfReader(memoryStream);
         using var doc = new PdfDocument(reader);
+        CV cv = new CV();
+        if (doc.GetNumberOfPages() == 0)
+            throw new BadRequestException("The PDF document is empty or invalid.", nameof(doc));
 
         for (int pageNum = 1; pageNum <= doc.GetNumberOfPages(); pageNum++)
         {
@@ -49,5 +52,36 @@ public class CVRepository : ICVRepository
         }
 
         return cv;
+    }
+
+    public Task<List<CV>> GetAllCVsAsync()
+    {
+        return dbContext.CVs.ToListAsync();
+    }
+
+    public async Task<CV> GetCVByIdAsync(int id)
+    {
+        return await dbContext.CVs.FirstOrDefaultAsync(cv => cv.Id == id) ?? throw new Exception($"CV with ID {id} not found.");
+    }
+
+    public Task<int> SaveCVAsync(CV cv)
+    {
+        if (cv.Id == 0)
+        {
+            cv.CreatedAt = DateTime.UtcNow;
+            dbContext.CVs.Add(cv);
+        }
+        else
+        {
+            dbContext.CVs.Update(cv);
+        }
+
+        return dbContext.SaveChangesAsync();
+    }
+
+    public Task<bool> UpdateCVAsync(CV cv)
+    {
+        dbContext.CVs.Update(cv);
+        return dbContext.SaveChangesAsync().ContinueWith(t => t.Result > 0);
     }
 }

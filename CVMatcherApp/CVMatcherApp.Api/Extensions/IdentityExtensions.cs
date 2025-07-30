@@ -14,7 +14,7 @@ public static class IdentityExtensions
         serviceCollection.AddDbContext<MatcherDbContext>(options =>
         {
             var connectionString = configuration.GetConnectionString("SqlDb");
-            options.UseSqlServer(connectionString);
+            options.UseNpgsql(connectionString);
         });
 
         serviceCollection.AddIdentity<IdentityUser, IdentityRole>()
@@ -31,7 +31,6 @@ public static class IdentityExtensions
 
     public static void InitAuth(this IServiceCollection services) {
         var jwtOptions = services.BuildServiceProvider().GetRequiredService<IOptions<JwtOptions>>().Value;
-
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -42,6 +41,7 @@ public static class IdentityExtensions
             .AddJwtBearer(options =>
             {
                 var keyStr = jwtOptions.SignatureKey;
+                System.Console.WriteLine(keyStr);
                 var keyBytes = System.Text.Encoding.ASCII.GetBytes(keyStr);
 
                 options.TokenValidationParameters = new TokenValidationParameters
