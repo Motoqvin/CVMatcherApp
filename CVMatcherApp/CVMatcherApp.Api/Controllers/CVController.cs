@@ -1,11 +1,17 @@
+using System.Security.Claims;
 using System.Threading.Tasks;
+using CVMatcherApp.Api.Jobs;
+using CVMatcherApp.Api.Responses;
 using CVMatcherApp.Api.Services.Base;
+using Hangfire;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CVMatcherApp.Api.Controllers;
 
 [ApiController]
-[Route("api/")]
+[Route("api/[controller]/[action]")]
+[Authorize(Roles = "User")]
 public class CVController : ControllerBase
 {
     private readonly ICVService _cvService;
@@ -14,49 +20,34 @@ public class CVController : ControllerBase
         _cvService = cvService;
     }
 
-
-    [HttpGet("/cv")]
+    [HttpGet]
     public async Task<IActionResult> GetCVs()
     {
-        var cvs = await _cvService.GetAllCVsAsync();
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier);
+        var cvs = await _cvService.GetAllCVsAsync(userId!.ToString().Split(": ")[1]);
         return Ok(cvs);
     }
 
-    [HttpPost("/cv/upload")]
+    [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    public IActionResult UploadCV(IFormFile formFile)
+    public async Task<IActionResult> UploadCVAsync(IFormFile formFile)
     {
-        _cvService.SaveCVAsync(formFile);
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier);
+        await _cvService.SaveCVAsync(formFile, userId!.ToString().Split(": ")[1]);
         return CreatedAtAction(nameof(GetCVs), new { Message = "CV created successfully" });
     }
 
-    [HttpGet("/cv/analyze")]
+    [HttpPost("analyze")]
     public async Task<IActionResult> AnalyzeCV(int cvId)
     {
-        await _cvService.AnalyzeCVAsync(cvId);
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier);
+        var cv = await _cvService.GetCVById(cvId);
+        System.Console.WriteLine(cv.Content);
+        System.Console.WriteLine(userId);
+        BackgroundJob.Enqueue<OpenAIAnalysisJob>(job => job.AnalyzeAndSaveCVAsync(userId!.ToString(), cv));
+        
         return Ok(new { Message = "CV analysis started successfully" });
     }
 
-    [HttpGet("/analytics/usage-stats")]
-    public IActionResult GetUsageStats()
-    {
-        // This method would typically return usage statistics.
-        // For now, we return a placeholder response.
-        return Ok(new { Message = "Usage statistics are not implemented yet." });
-    }
-
-    [HttpGet("/analytics/user-stats")]
-    public IActionResult GetUserStats()
-    {
-        // This method would typically return user statistics.
-        // For now, we return a placeholder response.
-        return Ok(new { Message = "User statistics are not implemented yet." });
-    }
-
-    [HttpGet("/health")]
-    public IActionResult HealthCheck()
-    {
-        // This method is a simple health check endpoint.
-        return Ok(new { Status = "Healthy" });
-    }
+    
 }

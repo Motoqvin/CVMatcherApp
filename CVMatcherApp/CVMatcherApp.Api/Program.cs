@@ -1,3 +1,4 @@
+using CVMatcherApp.Api.Data;
 using CVMatcherApp.Api.Extensions;
 using CVMatcherApp.Api.Jobs;
 using CVMatcherApp.Api.Middlewares;
@@ -62,8 +63,11 @@ builder.Services.AddScoped<ICVRepository, CVRepository>();
 builder.Services.AddScoped<ICVService, CVService>();
 builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 builder.Services.AddScoped<IOpenAIService, OpenAIService>();
+builder.Services.AddScoped<AnalyticsService>();
 builder.Services.AddScoped<CVsCleanupJob>();
 builder.Services.AddScoped<OpenAIAnalysisJob>();
+
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
@@ -85,6 +89,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<LoggingMiddleware>();
 
 app.MapControllers().AllowAnonymous();
+
+app.MapHealthChecks("/health");
 
 app.UseHangfireDashboard();
 

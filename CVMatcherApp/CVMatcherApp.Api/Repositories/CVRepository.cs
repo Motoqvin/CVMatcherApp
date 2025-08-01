@@ -2,6 +2,7 @@ using CVMatcherApp.Api.Data;
 using CVMatcherApp.Api.Exceptions;
 using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Repositories.Base;
+using DocumentFormat.OpenXml.Packaging;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
@@ -29,7 +30,7 @@ public class CVRepository : ICVRepository
         return oldCVs.Count;
     }
 
-    public CV Extract(byte[] bytes)
+    public CV ExtractPdf(byte[] bytes)
     {
         if (bytes == null || bytes.Length == 0)
             throw new ArgumentException("File cannot be null or empty");
@@ -54,9 +55,23 @@ public class CVRepository : ICVRepository
         return cv;
     }
 
-    public Task<List<CV>> GetAllCVsAsync()
+    public CV ExtractDocx(byte[] bytes)
     {
-        return dbContext.CVs.ToListAsync();
+        using var stream = new MemoryStream(bytes);
+        using WordprocessingDocument wordDoc = WordprocessingDocument.Open(stream, false);
+        var body = wordDoc.MainDocumentPart?.Document.Body;
+        var cv = new CV()
+        {
+            Content = body?.InnerText
+        };
+
+        System.Console.WriteLine(body?.InnerText);
+        return cv;
+    }
+
+    public Task<List<CV>> GetAllCVsAsync(string userId)
+    {
+        return dbContext.CVs.Where(cv => cv.UserId == userId).ToListAsync();
     }
 
     public async Task<CV> GetCVByIdAsync(int id)

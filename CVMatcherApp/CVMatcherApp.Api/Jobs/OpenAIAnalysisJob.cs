@@ -1,3 +1,5 @@
+using CVMatcherApp.Api.Data;
+using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Services;
 using CVMatcherApp.Api.Services.Base;
 
@@ -6,22 +8,28 @@ namespace CVMatcherApp.Api.Jobs;
 public class OpenAIAnalysisJob
 {
     private readonly IOpenAIService _openAIService;
-    private readonly ICVService cVService;
-    public OpenAIAnalysisJob(IOpenAIService openAIService, ICVService cVService)
+    private readonly MatcherDbContext dbContext;
+    public OpenAIAnalysisJob(IOpenAIService openAIService, MatcherDbContext dbContext)
     {
         _openAIService = openAIService;
-        this.cVService = cVService;
+        this.dbContext = dbContext;
     }
 
-    public async Task AnalyzeCVAsync(int cvId)
+    public async Task AnalyzeAndSaveCVAsync(string userId, CV cv)
     {
-        var cv = await cVService.GetCVById(cvId);
+        var result = await _openAIService.AnalyzeCV(cv);
 
-        var analysisResult = await _openAIService.AnalyzeCV(cv);
+        var cvRecord = new CV
+        {
+            UserId = userId,
+            Content = cv.Content,
+            Summary = result.Summary,
+            Suggestions = result.Suggestions,
+            MatchScore = result.MatchScore,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        cv.Summary = analysisResult.Summary;
-        cv.Suggestions = analysisResult.Suggestions;
-
-        await cVService.UpdateCVAsync(cv); 
+        dbContext.CVs.Add(cvRecord);
+        await dbContext.SaveChangesAsync();
     }
 }

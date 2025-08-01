@@ -27,9 +27,9 @@ public class CVService : ICVService
         return await repository.DeleteOldCVsAsync();
     }
 
-    public async Task<List<CV>> GetAllCVsAsync()
+    public async Task<List<CV>> GetAllCVsAsync(string userId)
     {
-        return await repository.GetAllCVsAsync();
+        return await repository.GetAllCVsAsync(userId);
     }
 
     public async Task<CV> GetCVById(int id)
@@ -73,7 +73,7 @@ public class CVService : ICVService
         return cv;
     }
 
-    public async void SaveCVAsync(IFormFile file)
+    public async Task<bool> SaveCVAsync(IFormFile file, string userId)
     {
         if (file == null || file.Length == 0) throw new ArgumentException("File cannot be null or empty");
 
@@ -83,21 +83,23 @@ public class CVService : ICVService
         using var memoryStream = new MemoryStream();
         file.CopyTo(memoryStream);
         var fileContent = memoryStream.ToArray();
+        CV cv;
 
-        var cv = repository.Extract(fileContent);
-        cv.Content = Convert.ToBase64String(fileContent);
+        cv = extension == ".pdf" ? repository.ExtractPdf(fileContent) : repository.ExtractDocx(fileContent);
 
-        cv = Parse(cv.Content);
+        cv = Parse(cv.Content!);
+        cv.UserId = userId;
         cv.IsParsed = true;
         cv.FileName = file.FileName;
         cv.Content = Convert.ToBase64String(fileContent);
-        
+
         await repository.SaveCVAsync(cv);
+        return true;
     }
 
     public async Task<bool> UpdateCVAsync(CV cv)
     {
-        if (cv == null) throw new ArgumentNullException(nameof(cv));
+        ArgumentNullException.ThrowIfNull(cv);
 
         if (string.IsNullOrEmpty(cv.FileName))
             throw new ArgumentException("FileName cannot be null or empty");

@@ -1,4 +1,5 @@
 using CVMatcherApp.Api.Data;
+using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +18,7 @@ public static class IdentityExtensions
             options.UseNpgsql(connectionString);
         });
 
-        serviceCollection.AddIdentity<IdentityUser, IdentityRole>()
+        serviceCollection.AddIdentity<User, IdentityRole>()
             .AddEntityFrameworkStores<MatcherDbContext>();
     }
 

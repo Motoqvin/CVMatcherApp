@@ -1,8 +1,7 @@
-namespace CVMatcherApp.Api.Models;
+namespace CVMatcherApp.Api.Dtos;
 
-public class CV
+public class CVDto
 {
-    public int Id { get; set; }
     public string? FileName { get; set; }
     public string? Content { get; set; }
     public string? FullName { get; set; }
@@ -12,12 +11,8 @@ public class CV
     public string? Education { get; set; }
     public string? Experience { get; set; }
     public string? Skills { get; set; }
+
     public string? Summary { get; set; }
     public string? Suggestions { get; set; }
-    public string? UserId { get; set; }
-    public User? User { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
-    public bool IsParsed { get; set; }
-    public bool IsAnalyzed { get; set; }
-    public int MatchScore { get; set; }
+    public int? MatchScore { get; set; }
 }
