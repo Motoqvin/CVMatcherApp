@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using CVMatcherApp.Api.Jobs;
 using CVMatcherApp.Api.Responses;
+using CVMatcherApp.Api.Services;
 using CVMatcherApp.Api.Services.Base;
 using Hangfire;
 using Microsoft.AspNetCore.Authorization;
@@ -15,16 +16,18 @@ namespace CVMatcherApp.Api.Controllers;
 public class CVController : ControllerBase
 {
     private readonly ICVService _cvService;
-    public CVController(ICVService cvService)
+    private readonly CVParserService parserService;
+    public CVController(ICVService cvService, CVParserService parserService)
     {
         _cvService = cvService;
+        this.parserService = parserService;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetCVs()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier);
-        var cvs = await _cvService.GetAllCVsAsync(userId!.ToString().Split(": ")[1]);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var cvs = await _cvService.GetAllCVsAsync(userId!);
         return Ok(cvs);
     }
 
@@ -32,9 +35,11 @@ public class CVController : ControllerBase
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCVAsync(IFormFile formFile)
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier);
-        await _cvService.SaveCVAsync(formFile, userId!.ToString().Split(": ")[1]);
-        return CreatedAtAction(nameof(GetCVs), new { Message = "CV created successfully" });
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var parsedCV = await parserService.ParseCVAsync(formFile, userId!);
+
+        await _cvService.SaveCVAsync(parsedCV);
+        return CreatedAtAction(nameof(GetCVs), parsedCV);
     }
 
     [HttpPost("analyze")]

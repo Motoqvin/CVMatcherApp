@@ -64,10 +64,12 @@ builder.Services.AddScoped<ICVService, CVService>();
 builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 builder.Services.AddScoped<IOpenAIService, OpenAIService>();
 builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<CVParserService>();
 builder.Services.AddScoped<CVsCleanupJob>();
 builder.Services.AddScoped<OpenAIAnalysisJob>();
 
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("SqlDb") ?? "");
 
 var app = builder.Build();
 

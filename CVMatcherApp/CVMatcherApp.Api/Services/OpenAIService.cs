@@ -33,7 +33,7 @@ public class OpenAIService : IOpenAIService
         var cvJson = JsonSerializer.Serialize(cv);
 
         string prompt = $@"
-Analyze the following CV (in JSON format) and provide:
+Analyze the following CV (in JSON format) and provide (also in JSON format):
 1. A summary of the candidate's strengths.
 2. Suggestions for improving the CV.
 3. A match score from 1 to 100 that reflects how strong this CV appears.
