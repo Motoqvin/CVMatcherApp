@@ -5,7 +5,6 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
-using Xceed.Words.NET;
 
 namespace CVMatcherApp.Api.Services;
 
@@ -92,7 +91,7 @@ public class CVParserService
     }
 
     private string? ExtractEmail(string text) =>
-        Regex.Match(text, @"[a-zA-Z0-9\.\-_]+@[a-zA-Z0-9\-_]+\.[a-zA-Z]{2,}").Value;
+        Regex.Match(text, @"[a-zA-Z0-9\.\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}").Value;
 
     private string? ExtractPhoneNumber(string text) =>
         Regex.Match(text, @"\+?\d{1,3}[\s\-]?\(?\d{2,4}\)?[\s\-]?\d{3}[\s\-]?\d{3,4}").Value;
