@@ -3,13 +3,10 @@ using System.Text;
 using System.Text.Json;
 using CVMatcherApp.Api.Dtos;
 using CVMatcherApp.Api.Exceptions;
-using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Options;
 using CVMatcherApp.Api.Repositories.Base;
 using CVMatcherApp.Api.Services.Base;
-using Hangfire.Common;
 using Microsoft.Extensions.Options;
-using OpenAI.Chat;
 
 namespace CVMatcherApp.Api.Services;
 
@@ -35,7 +32,7 @@ public class OpenAIService : IOpenAIService
     {
         var cv = await _cvRepo.GetCVByIdAsync(analyzeId) ?? throw new NotFoundException();
         var analysisResults = new List<JobMatchDto>();
-        
+
         await _resultRepo.MarkAnalysisStartedAsync(cv.Id);
 
         foreach (var job in jobDescriptions)
@@ -50,11 +47,80 @@ public class OpenAIService : IOpenAIService
 
     public async Task<JobMatchDto> AnalyzeCvAgainstJobAsync(string cvText, string jobDescription, string language)
     {
-        var prompt = $"Compare this CV to the job description and rate the match from 0 to 100 in {language} language. Explain why.\n\nCV:\n{cvText}\n\nJob:\n{jobDescription}";
+        var prompt = $@"
+You are a premium AI career strategist helping mission-driven professionals find aligned roles that match their talents, temperament, and trajectory.
 
-        var response = await _httpClient.PostAsJsonAsync("openai-api-url", new { prompt });
-        var result = await response.Content.ReadFromJsonAsync<JobMatchDto>();
+Speak to the user as 'you' in {language} language and refer to the job as '{jobDescription}'.
 
-        return result!;
+Your tone is emotionally intelligent, practical, and encouraging — like a mentor with deep insight into vocational psychology, leadership energy, and personal growth.
+
+GOAL:
+Give a career compatibility reading that’s emotionally insightful, specific, and rooted in the candidate’s unique value — not generic fluff.
+
+HOW:
+- Compare the CV and job using:
+  - Technical fit (skills & tools)
+  - Career archetypes (e.g., strategist, builder, guide)
+  - Workstyle alignment (e.g., autonomous vs. collaborative)
+  - Passion alignment (e.g., hobbies, side projects, mission)
+
+- One focused sentence per field.
+- Mention at least one possible growth edge or mismatch (e.g., too visionary for a rigid environment).
+- Use career psychology language (e.g., visionary thinker, systems builder, empathetic communicator).
+
+DATA  
+Candidate's CV is in JSON Format:
+{cvText}
+
+FORMAT:  
+Return ONLY valid JSON in this structure, then add a one-line motivational wrap-up:
+
+{{
+  ""MatchScore"": number,
+  ""Explanation"": ""One sentence about how your hard skills match — include one gap or surplus."",
+  ""Suggestions"": ""Give several suggestions to the candidate to improve his/her cv in future""
+}}
+
+Hey — here’s the takeaway: <1 sentence pep talk in new wording — career-affirming, strengths-based, ends with a growth mindset>.
+";
+
+        var requestBody = new
+        {
+            model = _options.Model,
+            messages = new[]
+            {
+                new { role = "system", content = "You are a professional dating compatibility analyst. Respond only with valid JSON." },
+                new { role = "user", content = prompt }
+            },
+            temperature = 0.3,
+            response_format = new { type = "json_object" },
+            max_tokens = 1024
+        };
+
+        using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _options.ApiKey);
+        req.Content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
+        using var resp = await _httpClient.SendAsync(req);
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync();
+        var root = JsonDocument.Parse(json).RootElement;
+
+        var answerJson = root
+            .GetProperty("choices")[0]
+            .GetProperty("message")
+            .GetProperty("content")
+            .GetString();
+        Console.WriteLine(answerJson);
+
+        var match = JsonSerializer.Deserialize<JobMatchDto>(answerJson!, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        match!.JobDescription = jobDescription;
+
+        return match!;
     }
 }
