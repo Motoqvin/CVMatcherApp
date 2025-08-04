@@ -54,12 +54,19 @@ builder.Services.InitSwagger();
 builder.Services.AddHangfire(config =>
 {
     string conStr = builder.Configuration.GetConnectionString("SqlDb")!;
-    config.UsePostgreSqlStorage(conStr);
+    config.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+    {
+        options.UseNpgsqlConnection(conStr);
+    });
 });
 builder.Services.AddHangfireServer();
 
 builder.Services.AddScoped<ILogRepository, LogRepository>();
 builder.Services.AddScoped<ICVRepository, CVRepository>();
+builder.Services.AddScoped<IResultRepository, ResultRepository>();
 builder.Services.AddScoped<ICVService, CVService>();
 builder.Services.AddScoped<IAuditLogger, AuditLogger>();
 builder.Services.AddScoped<IOpenAIService, OpenAIService>();

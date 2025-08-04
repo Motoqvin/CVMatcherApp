@@ -1,9 +1,13 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using CVMatcherApp.Api.Dtos;
+using CVMatcherApp.Api.Exceptions;
 using CVMatcherApp.Api.Models;
 using CVMatcherApp.Api.Options;
+using CVMatcherApp.Api.Repositories.Base;
 using CVMatcherApp.Api.Services.Base;
+using Hangfire.Common;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
@@ -13,45 +17,44 @@ public class OpenAIService : IOpenAIService
 {
     private readonly HttpClient _httpClient;
     private readonly OpenAIOptions _options;
+    private readonly ICVRepository _cvRepo;
+    private readonly IResultRepository _resultRepo;
 
-    public OpenAIService(HttpClient httpClient, IOptions<OpenAIOptions> options)
+    public OpenAIService(HttpClient httpClient, IOptions<OpenAIOptions> options, ICVRepository cvRepository, IResultRepository resultRepository)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _cvRepo = cvRepository;
+        _resultRepo = resultRepository;
 
         _httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", _options.ApiKey);
     }
 
-    public async Task<Result> AnalyzeCV(CV cv)
+    public async Task ProcessAnalysisAsync(int analyzeId, List<string> jobDescriptions, int resultId, string language)
     {
-        if (cv == null || string.IsNullOrEmpty(cv.Content))
+        var cv = await _cvRepo.GetCVByIdAsync(analyzeId) ?? throw new NotFoundException();
+        var analysisResults = new List<JobMatchDto>();
+        
+        await _resultRepo.MarkAnalysisStartedAsync(cv.Id);
+
+        foreach (var job in jobDescriptions)
         {
-            throw new ArgumentException("CV content cannot be null or empty.");
+            var result = await AnalyzeCvAgainstJobAsync(JsonSerializer.Serialize(cv), job, language);
+            analysisResults.Add(result);
         }
 
-        var cvJson = JsonSerializer.Serialize(cv);
+        await _resultRepo.SaveResultAsync(resultId, analysisResults);
+    }
 
-        string prompt = $@"
-Analyze the following CV (in JSON format) and provide (also in JSON format):
-1. A summary of the candidate's strengths.
-2. Suggestions for improving the CV.
-3. A match score from 1 to 100 that reflects how strong this CV appears.
 
-CV JSON:
-{cvJson}
-";
-        ChatClient chatClient = new(model: "gpt-3.5-turbo", apiKey: _options.ApiKey);
+    public async Task<JobMatchDto> AnalyzeCvAgainstJobAsync(string cvText, string jobDescription, string language)
+    {
+        var prompt = $"Compare this CV to the job description and rate the match from 0 to 100 in {language} language. Explain why.\n\nCV:\n{cvText}\n\nJob:\n{jobDescription}";
 
-        ChatCompletion chatCompletion = await chatClient.CompleteChatAsync(prompt);
+        var response = await _httpClient.PostAsJsonAsync("openai-api-url", new { prompt });
+        var result = await response.Content.ReadFromJsonAsync<JobMatchDto>();
 
-        System.Console.WriteLine(chatCompletion.Content[0].Text);
-
-        var result = new Result
-        {
-
-        };
-
-        return result;
+        return result!;
     }
 }

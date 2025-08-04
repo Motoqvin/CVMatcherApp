@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace CVMatcherApp.Api.Models;
 
 public class CV
@@ -20,4 +22,8 @@ public class CV
     public bool IsParsed { get; set; }
     public bool IsAnalyzed { get; set; }
     public int MatchScore { get; set; }
+
+    public int ResultId { get; set; }
+    [ForeignKey(nameof(ResultId))]
+    public Result AnalysisResult { get; set; } = new Result();
 }

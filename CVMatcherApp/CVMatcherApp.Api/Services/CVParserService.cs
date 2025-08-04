@@ -99,7 +99,7 @@ public class CVParserService
 
     private string? ExtractFullName(string text)
     {
-        var lines = text.Split('\n');
+        var lines = text.Split(' ');
         foreach (var line in lines.Take(10))
         {
             if (Regex.IsMatch(line.Trim(), @"^[A-Z][a-z]+(\s[A-Z][a-z]+)+$"))
@@ -141,11 +141,11 @@ public class CVParserService
 
     private string? ExtractSection(string text, string sectionName, string[] keywords)
     {
-        var lines = text.Split('\n');
+        var lines = text.Split(' ');
         var index = Array.FindIndex(lines, l => l.Contains(sectionName, StringComparison.OrdinalIgnoreCase));
         if (index == -1) return null;
 
-        var sectionLines = lines.Skip(index + 1).Take(10); // take a few lines after section heading
+        var sectionLines = lines.Skip(index + 1).Take(10);
         return string.Join("\n", sectionLines.Where(l => keywords.Any(k => l.Contains(k, StringComparison.OrdinalIgnoreCase))));
     }
 }

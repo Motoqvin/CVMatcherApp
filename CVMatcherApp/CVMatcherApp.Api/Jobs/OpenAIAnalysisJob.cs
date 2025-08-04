@@ -15,21 +15,8 @@ public class OpenAIAnalysisJob
         this.dbContext = dbContext;
     }
 
-    public async Task AnalyzeAndSaveCVAsync(string userId, CV cv)
+    public async Task AnalyzeAndSaveCVAsync(int cvId, List<string> jobDescriptions, int resultId, string language)
     {
-        var result = await _openAIService.AnalyzeCV(cv);
-
-        var cvRecord = new CV
-        {
-            UserId = userId,
-            Content = cv.Content,
-            Summary = result.Summary,
-            Suggestions = result.Suggestions,
-            MatchScore = result.MatchScore,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        dbContext.CVs.Add(cvRecord);
-        await dbContext.SaveChangesAsync();
+        await _openAIService.ProcessAnalysisAsync(cvId, jobDescriptions, resultId, language);
     }
 }

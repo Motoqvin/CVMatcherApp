@@ -3,6 +3,7 @@ using System;
 using CVMatcherApp.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CVMatcherApp.Api.Migrations
 {
     [DbContext(typeof(MatcherDbContext))]
-    partial class MatcherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250804061311_Add JobMatch")]
+    partial class AddJobMatch
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -164,11 +167,11 @@ namespace CVMatcherApp.Api.Migrations
 
             modelBuilder.Entity("CVMatcherApp.Api.Models.Result", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<int>("ResultId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("ResultId"));
 
                     b.Property<DateTime?>("CompletedAt")
                         .HasColumnType("timestamp with time zone");
@@ -179,7 +182,7 @@ namespace CVMatcherApp.Api.Migrations
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.HasKey("Id");
+                    b.HasKey("ResultId");
 
                     b.ToTable("Results");
                 });

@@ -17,11 +17,6 @@ public class CVService : ICVService
         this.openAIService = openAIService; 
     }
 
-    public async Task<Result> AnalyzeCVAsync(int cvId)
-    {
-        return await openAIService.AnalyzeCV(await GetCVById(cvId));
-    }
-
     public async Task<int> CleanUpOldCVs()
     {
         return await repository.DeleteOldCVsAsync();
