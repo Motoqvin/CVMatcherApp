@@ -15,13 +15,11 @@ public class CV
     public string? Experience { get; set; }
     public string? Skills { get; set; }
     public string? Summary { get; set; }
-    public string? Suggestions { get; set; }
     public string? UserId { get; set; }
     public User? User { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public bool IsParsed { get; set; }
     public bool IsAnalyzed { get; set; }
-    public int MatchScore { get; set; }
 
     public int ResultId { get; set; }
     [ForeignKey(nameof(ResultId))]

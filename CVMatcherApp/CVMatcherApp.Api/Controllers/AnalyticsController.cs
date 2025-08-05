@@ -1,11 +1,13 @@
 using System.Threading.Tasks;
 using CVMatcherApp.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CVMatcherApp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "User")]
 public class AnalyticsController : ControllerBase
 {
     private readonly AnalyticsService _analyticsService;

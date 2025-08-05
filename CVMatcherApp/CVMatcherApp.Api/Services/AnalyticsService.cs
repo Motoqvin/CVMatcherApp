@@ -1,3 +1,4 @@
+using System.Linq;
 using CVMatcherApp.Api.Data;
 using CVMatcherApp.Api.Dtos;
 using Microsoft.EntityFrameworkCore;
@@ -23,8 +24,11 @@ public class AnalyticsService
                 TotalCVs = user.CVs!.Count(),
                 AnalyzedCVs = user.CVs!.Count(cv => cv.IsAnalyzed),
                 AverageMatchScore = user.CVs!
-                    .Where(cv => cv.IsAnalyzed)
-                    .Select(cv => (double?)cv.MatchScore)
+                    .Select(cv => _dbContext.Results
+                        .Where(r => r.Id == cv.Id)
+                        .SelectMany(r => r.Matches.Select(m => (double?)m.MatchScore))
+                        .DefaultIfEmpty()
+                        .Average())
                     .Average() ?? 0
             });
 
@@ -36,9 +40,8 @@ public class AnalyticsService
         var totalCVs = await _dbContext.CVs.CountAsync();
         var parsedCVs = await _dbContext.CVs.CountAsync(c => c.IsParsed);
         var analyzedCVs = await _dbContext.CVs.CountAsync(c => c.IsAnalyzed);
-        var averageScore = await _dbContext.CVs
-            .Where(c => c.IsAnalyzed)
-            .Select(c => (double?)c.MatchScore)
+        var averageScore = await _dbContext.Results
+            .Select(c => (double?)c.Matches.Select(r => r.MatchScore).Average())
             .AverageAsync() ?? 0;
 
         var latestUpload = await _dbContext.CVs
