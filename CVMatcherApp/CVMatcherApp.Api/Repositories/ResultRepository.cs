@@ -35,7 +35,8 @@ public class ResultRepository : IResultRepository
             {
                 JobDescription = m.JobDescription,
                 MatchScore = m.MatchScore,
-                Explanation = m.Explanation
+                Explanation = m.Explanation,
+                Suggestions = m.Suggestions
             }).ToList()
         };
     }
@@ -70,6 +71,7 @@ public class ResultRepository : IResultRepository
                 JobDescription = match.JobDescription,
                 MatchScore = match.MatchScore,
                 Explanation = match.Explanation,
+                Suggestions = match.Suggestions
             });
         }
 

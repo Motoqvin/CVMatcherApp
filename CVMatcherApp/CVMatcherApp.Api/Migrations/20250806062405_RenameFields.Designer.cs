@@ -3,6 +3,7 @@ using System;
 using CVMatcherApp.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CVMatcherApp.Api.Migrations
 {
     [DbContext(typeof(MatcherDbContext))]
-    partial class MatcherDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250806062405_RenameFields")]
+    partial class RenameFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -146,7 +149,7 @@ namespace CVMatcherApp.Api.Migrations
                     b.Property<int>("MatchScore")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("ResultId")
+                    b.Property<int>("ResultId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Suggestions")
@@ -397,9 +400,13 @@ namespace CVMatcherApp.Api.Migrations
 
             modelBuilder.Entity("CVMatcherApp.Api.Models.JobMatch", b =>
                 {
-                    b.HasOne("CVMatcherApp.Api.Models.Result", null)
+                    b.HasOne("CVMatcherApp.Api.Models.Result", "Result")
                         .WithMany("Matches")
-                        .HasForeignKey("ResultId");
+                        .HasForeignKey("ResultId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Result");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

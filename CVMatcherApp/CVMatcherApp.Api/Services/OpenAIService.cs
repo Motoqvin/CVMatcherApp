@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using CVMatcherApp.Api.Dtos;
 using CVMatcherApp.Api.Exceptions;
 using CVMatcherApp.Api.Options;
@@ -78,8 +79,14 @@ Return ONLY valid JSON in this structure, then add a one-line motivational wrap-
 {{
   ""MatchScore"": number,
   ""Explanation"": ""One sentence about how your hard skills match — include one gap or surplus."",
-  ""Suggestions"": ""Give several suggestions to the candidate to improve his/her cv in future""
+  ""Suggestions"": ""One sentence giving several suggestions to the candidate to improve his/her cv in future""
 }}
+
+Respond ONLY with JSON:
+""MatchScore"": number,
+""Explanation"": ""string"",
+""Suggestions"": ""string""
+
 
 Hey — here’s the takeaway: <1 sentence pep talk in new wording — career-affirming, strengths-based, ends with a growth mindset>.
 ";
@@ -89,7 +96,7 @@ Hey — here’s the takeaway: <1 sentence pep talk in new wording — career-af
             model = _options.Model,
             messages = new[]
             {
-                new { role = "system", content = "You are a professional dating compatibility analyst. Respond only with valid JSON." },
+                new { role = "system", content = "You are a professional CV compatibility analyst. Respond only with valid JSON." },
                 new { role = "user", content = prompt }
             },
             temperature = 0.3,
@@ -112,12 +119,15 @@ Hey — here’s the takeaway: <1 sentence pep talk in new wording — career-af
             .GetProperty("message")
             .GetProperty("content")
             .GetString();
-        Console.WriteLine(answerJson);
 
-        var match = JsonSerializer.Deserialize<JobMatchDto>(answerJson!, new JsonSerializerOptions
+        var jsonOnly = Regex.Match(answerJson!, @"\{.*\}", RegexOptions.Singleline).Value;
+
+        var match = JsonSerializer.Deserialize<JobMatchDto>(jsonOnly!, new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         });
+
+        System.Console.WriteLine(match!.Suggestions);
 
         match!.JobDescription = jobDescription;
 
