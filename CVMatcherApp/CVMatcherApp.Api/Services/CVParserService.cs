@@ -41,7 +41,6 @@ public class CVParserService
 
         if (file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
-            ms.Position = 0;
             using var reader = new PdfReader(ms);
             using var pdfDoc = new PdfDocument(reader);
             var strategy = new SimpleTextExtractionStrategy();
@@ -57,94 +56,120 @@ public class CVParserService
 
         if (file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
         {
-            StringBuilder textBuilder = new StringBuilder();
-
+            var textBuilder = new StringBuilder();
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(ms, false))
-        {
-            MainDocumentPart mainPart = wordDoc.MainDocumentPart!;
-
-            if (mainPart != null)
             {
-                Body body = mainPart.Document.Body!;
-
-                if (body != null)
+                var mainPart = wordDoc.MainDocumentPart!;
+                if (mainPart != null)
                 {
-                    foreach (Paragraph p in body.Descendants<Paragraph>())
+                    var body = mainPart.Document.Body!;
+                    if (body != null)
                     {
-                            foreach (Run r in p.Descendants<Run>())
+                        foreach (var p in body.Descendants<Paragraph>())
+                        {
+                            foreach (var r in p.Descendants<Run>())
                             {
-                                foreach (Text t in r.Descendants<Text>())
+                                foreach (var t in r.Descendants<Text>())
                                 {
                                     textBuilder.Append($"{t.Text}");
                                 }
-                                textBuilder.Append(' ');
+                            }
+                            textBuilder.AppendLine();
                         }
-                        textBuilder.AppendLine();
                     }
                 }
             }
-        }
-        return textBuilder.ToString();
+            return textBuilder.ToString();
         }
 
         throw new NotSupportedException("Unsupported file type");
     }
 
     private string? ExtractEmail(string text) =>
-        Regex.Match(text, @"[a-zA-Z0-9\.\-]+@[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}").Value;
+        Regex.Match(text, @"[a-zA-Z0-9\.\-_]+@[a-zA-Z0-9\-_]+\.[a-zA-Z]{2,}").Value;
 
     private string? ExtractPhoneNumber(string text) =>
         Regex.Match(text, @"\+?\d{1,3}[\s\-]?\(?\d{2,4}\)?[\s\-]?\d{3}[\s\-]?\d{3,4}").Value;
 
     private string? ExtractFullName(string text)
     {
-        var lines = text.Split(' ');
-        foreach (var line in lines.Take(10))
+        var lines = text.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+        foreach (var line in lines.Take(8))
         {
-            if (Regex.IsMatch(line.Trim(), @"^[A-Z][a-z]+(\s[A-Z][a-z]+)+$"))
-                return line.Trim();
+            if (Regex.IsMatch(line, @"^[A-Z][a-z]+(\s[A-Z][a-z]+)+$") && !line.Contains("@") && !line.Contains("Engineer") && !line.Contains("Developer"))
+                return line;
         }
+        var match = Regex.Match(text, @"^([A-Z][a-z]+(\s[A-Z][a-z]+)+)\s*\n\s*Senior Software Engineer", RegexOptions.Multiline);
+        if (match.Success)
+            return match.Groups[1].Value.Trim();
         return null;
     }
 
     private string? ExtractLocation(string text)
     {
-        var match = Regex.Match(text, @"(?i)(?:Address|Location)[:\s]+(.+)");
-        return match.Success ? match.Groups[1].Value.Trim() : null;
+        var match = Regex.Match(text, @"Based in ([A-Za-z\s]+)", RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value.Trim();
+        match = Regex.Match(text, @"Location[:\s]+([A-Za-z\s]+)", RegexOptions.IgnoreCase);
+        if (match.Success) return match.Groups[1].Value.Trim();
+        return null;
     }
 
-    private string? ExtractEducation(string text)
-    {
-        var educationKeywords = new[] { "Bachelor", "Master", "PhD", "University", "BSc", "MSc" };
-        return ExtractSection(text, "Education", educationKeywords);
-    }
-
-    private string? ExtractExperience(string text)
-    {
-        var experienceKeywords = new[] { "Company", "Worked", "Experience", "Developer", "Engineer" };
-        return ExtractSection(text, "Experience", experienceKeywords);
-    }
+    private string? ExtractEducation(string text) => ExtractSection(text, "Education");
+    private string? ExtractExperience(string text) => ExtractSection(text, "Work Experience");
 
     private string? ExtractSkills(string text)
     {
-        var skillsKeywords = new[] { "C#", "Java", "SQL", "Python", "JavaScript", "ASP.NET", "HTML", "CSS" };
+        var section = ExtractSection(text, "Core Skills");
+        if (!string.IsNullOrWhiteSpace(section))
+            return section.Replace("\n", ", ").Replace("•", "").Replace(":", "").Trim(' ', ',');
+        var skillsKeywords = new[] { "Angular", "C#", "Java", "JavaScript", "TypeScript", "SQL", "HTML", "CSS", "Docker", "REST", "RxJS", "JIRA", "Git", "Karma", "NGRX", "Jest", "Cypress", "TailwindCSS", "WinForms", "WPF", "SOAP", "SCSS", "Jasmine" };
         var found = skillsKeywords.Where(k => text.Contains(k, StringComparison.OrdinalIgnoreCase));
-        return string.Join(", ", found);
+        return string.Join(", ", found.Distinct());
     }
 
     private string? ExtractSummary(string text)
     {
-        var match = Regex.Match(text, @"(?i)(Summary|Objective)[:\s]+(.+?)(\n|\r|$)");
-        return match.Success ? match.Groups[2].Value.Trim() : null;
+        var lines = text.Split('\n').Take(25).Select(l => l.Trim());
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("Senior Software Engineer") || line.StartsWith("Summary") || line.StartsWith("Profile"))
+                return line;
+        }
+        return null;
+    }
+    
+    private string? ExtractSection(string text, string sectionName)
+    {
+        var lines = text.Split('\n');
+        var startIndex = Array.FindIndex(lines, l => l.Trim().Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+        if (startIndex == -1)
+            return null;
+
+        var sb = new StringBuilder();
+        for (int i = startIndex + 1; i < lines.Length; i++)
+        {
+            var line = lines[i].Trim();
+
+            if (IsSectionHeader(line)) break;
+            if (!string.IsNullOrWhiteSpace(line))
+                sb.AppendLine(line);
+        }
+        var result = sb.ToString().Trim();
+        return string.IsNullOrWhiteSpace(result) ? null : result;
     }
 
-    private string? ExtractSection(string text, string sectionName, string[] keywords)
+    private bool IsSectionHeader(string line)
     {
-        var lines = text.Split(' ');
-        var index = Array.FindIndex(lines, l => l.Contains(sectionName, StringComparison.OrdinalIgnoreCase));
-        if (index == -1) return null;
-
-        var sectionLines = lines.Skip(index + 1).Take(10);
-        return string.Join("\n", sectionLines.Where(l => keywords.Any(k => l.Contains(k, StringComparison.OrdinalIgnoreCase))));
+        if (string.IsNullOrWhiteSpace(line)) return false;
+        string[] sections = {
+            "Projects", "Languages", "Awards", "Certificates", "Core Skills",
+            "Work Experience", "Education", "Summary", "Profile", "Soft Skills", "Testing",
+            "CI/CD & DevOps", "Backend", "Frontend", "Tools & Methodologies"
+        };
+        return sections.Any(s =>
+            line.Equals(s, StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith(s + ":", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith(s + " –", StringComparison.OrdinalIgnoreCase) ||
+            line.StartsWith(s + " -", StringComparison.OrdinalIgnoreCase));
     }
 }
